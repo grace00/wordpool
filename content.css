@@ -1,0 +1,145 @@
+/* The word itself must read exactly like the text around it — the dotted
+   underline is the only signal. No color, weight, or opacity changes. */
+.vocab-swap-ext {
+  border-bottom: 2px dotted #0093D0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  background: none;
+  transition: border-color 0.2s ease;
+}
+
+.vocab-swap-ext.vocab-viewed-ext {
+  border-bottom-color: #64b5f6;
+}
+
+@media (prefers-color-scheme: dark) {
+  .vocab-swap-ext {
+    border-bottom-color: #4DD0E1;
+  }
+
+  .vocab-swap-ext.vocab-viewed-ext {
+    border-bottom-color: #80deea;
+  }
+}
+
+/* ---------- Inline definition popover ----------
+   The card is injected into arbitrary pages, so every property that affects
+   its box must be stated here rather than inherited. Host rules that target
+   generic `div`/`button` (margins, box-sizing, line-height, text-transform)
+   otherwise apply straight through and inflate it. Scoped resets rather than
+   `all: initial`, which would also drop focus outlines and inherited color
+   behavior we rely on. */
+.vocab-card-ext {
+  position: fixed;
+  z-index: 2147483646; /* below the very top, so other extensions' UI wins */
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  width: max-content !important;
+  min-width: 0 !important;
+  max-width: min(340px, calc(100vw - 24px)) !important;
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 10px 12px !important;
+  background: #f7fbfe !important;
+  border: 1px solid #dbe6ef !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 8px rgba(18, 38, 63, 0.1) !important;
+  color: #12263f !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif !important;
+  font-size: 12px !important;
+  font-style: normal !important;
+  font-weight: 400 !important;
+  line-height: 1.4 !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+  text-transform: none !important;
+  text-align: left !important;
+  text-indent: 0 !important;
+  white-space: normal !important;
+  float: none !important;
+  transform: none;
+}
+
+.vocab-card-ext * {
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  text-indent: 0 !important;
+  float: none !important;
+}
+
+.vocab-card-word {
+  font-family: "Crimson Text", Georgia, serif !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  line-height: 1.15 !important;
+  color: #0b6bcb !important;
+}
+
+.vocab-card-def {
+  margin-top: 5px !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  line-height: 1.38 !important;
+  color: #12263f !important;
+}
+
+.vocab-card-action {
+  margin-top: 8px !important;
+  align-self: flex-start;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background: none !important;
+  border: none !important;
+  border-radius: 3px !important;
+  padding: 0 !important;
+  font-family: inherit !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  color: #0b6bcb !important;
+  text-decoration: none !important;
+  text-shadow: none !important;
+  cursor: pointer !important;
+  transition: color 0.14s ease;
+}
+
+.vocab-card-action:hover {
+  color: #08529c !important;
+  text-decoration: underline !important;
+}
+
+.vocab-card-action:focus-visible {
+  outline: 2px solid #0b6bcb !important;
+  outline-offset: 2px !important;
+  text-decoration: underline !important;
+}
+
+/* Small caret pointing back at the substituted word. */
+.vocab-card-caret {
+  position: absolute;
+  width: 8px !important;
+  height: 8px !important;
+  background: #f7fbfe !important;
+  border-left: 1px solid #dbe6ef !important;
+  border-top: 1px solid #dbe6ef !important;
+  transform: rotate(45deg);
+}
+
+.vocab-card-ext[data-placement="top"] .vocab-card-caret {
+  bottom: -5px;
+  transform: rotate(225deg);
+}
+
+.vocab-card-ext[data-placement="bottom"] .vocab-card-caret {
+  top: -5px;
+}

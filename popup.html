@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Wordpool</title>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;500;600;700&family=Crimson+Text:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <h1>Wordpool</h1>
+      <a id="wordsLink" href="words.html" target="_blank" rel="noopener" class="header-link">View pool</a>
+      <div class="overflow" id="overflow">
+        <button class="icon-btn" id="overflowBtn" type="button" aria-label="More options" aria-haspopup="menu" aria-expanded="false">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <circle cx="3.4" cy="8" r="1.4" fill="currentColor"/>
+            <circle cx="8" cy="8" r="1.4" fill="currentColor"/>
+            <circle cx="12.6" cy="8" r="1.4" fill="currentColor"/>
+          </svg>
+        </button>
+        <div class="menu" id="overflowMenu" role="menu" aria-labelledby="overflowBtn" hidden>
+          <button class="menu-item" role="menuitem" type="button" data-action="settings">Settings</button>
+          <button class="menu-item" role="menuitem" type="button" data-action="pause" id="pauseItem">Pause everywhere</button>
+          <button class="menu-item" role="menuitem" type="button" data-action="help">Help</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="pool-container">
+      <div class="pool-canvas">
+        <svg class="pool-water" id="poolWater" viewBox="0 0 1490 600" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+          <defs>
+            <clipPath id="poolClip">
+              <path d="M353.111 169.659C359.611 165.159 386.111 150.159 406.611 143.159C419.111 138.159 465.11 124.359 533.11 119.159C618.11 112.659 618.61 114.659 695.11 119.159C771.61 123.659 807.611 138.582 915.111 146.659C1022.61 154.735 1037.61 150.697 1078.61 151.274C1119.61 151.851 1151.18 143.456 1224.61 152.159C1292.11 160.159 1319.61 173.03 1345.11 187.159C1382.11 207.659 1406.11 236.659 1413.11 268.159C1417.82 289.35 1416.11 307.319 1409.61 323.319C1403.11 339.318 1376.11 365.819 1344.11 384.319C1312.11 402.819 1216.11 434.819 1094.11 447.819C972.111 460.819 789.11 460.819 617.61 415.819C480.41 379.819 391.11 322.994 365.11 298.66C363.277 296.66 347.369 283.049 340.11 272.16C320.11 242.16 324.611 236.66 324.611 236.66C324.611 236.66 329.808 234.462 331.611 232.659C332.998 231.272 335.111 229.759 335.111 228.159C335.111 227.228 331.731 222.237 328.111 220.659C326.111 220.159 322.087 221.427 321.111 220.66C320.111 209.159 326.012 198.299 332.611 189.659C340.245 179.662 346.611 174.159 353.111 169.659Z"/>
+            </clipPath>
+          </defs>
+          <g clip-path="url(#poolClip)">
+            <!-- Unfilled remainder — click to review what's still to learn. -->
+            <rect id="poolEmpty" x="0" y="0" width="1490" height="600" fill="#E3EEF4"
+                  role="button" tabindex="0" aria-label="View remaining words"/>
+            <!-- The water is a slab whose right edge is an S-curve, so the
+                 boundary reads as a waterline rather than a bar chart. The
+                 group carries the progress position and the path carries the
+                 hover ripple, so the two transforms never fight. -->
+            <!-- Starts empty (translateX = POOL_X) so the water always fills
+                 up to the real figure rather than draining down to it. -->
+            <g id="waterShift" style="transform: translateX(321px);">
+              <!-- The waterline geometry is generated per frame in popup.js so
+                   it can respond to the cursor; see initWater(). -->
+              <path id="waterFill" fill="#46B3D0"
+                    role="button" tabindex="0" aria-label="View learned words"
+                    d="M -1400 -60 L 0 -60 L 0 660 L -1400 660 Z"/>
+            </g>
+          </g>
+        </svg>
+        <img class="pool-foreground" src="pool-foreground.svg" alt="" />
+        <p class="pool-hint" id="poolHint" aria-hidden="true"></p>
+      </div>
+      <!-- Progress reads off the illustration itself: each label sits under
+           the portion it describes, sized from the live counts. -->
+      <div class="pool-legend">
+        <button type="button" class="legend legend-learned" id="learnedLink">
+          <span class="legend-count" id="learnedCount">0</span> learned
+        </button>
+        <button type="button" class="legend legend-remaining" id="remainingLink">
+          <span class="legend-count" id="remainingCount">0</span> remaining
+        </button>
+      </div>
+    </div>
+
+    <label class="toggle-row" for="siteToggle">
+      <span class="toggle-switch">
+        <input type="checkbox" id="siteToggle" />
+        <span class="toggle-track">
+          <span class="toggle-thumb">
+            <svg class="toggle-check" viewBox="0 0 12 12" width="8" height="8" aria-hidden="true">
+              <path d="M2 6.2 L4.8 9 L10 3" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </span>
+        </span>
+      </span>
+      <span class="status-dot" id="statusDot" aria-hidden="true"></span>
+      <span class="toggle-text">
+        <span class="status-state" id="statusState">Active</span>
+        <span class="status-site" id="currentSiteName">this site</span>
+      </span>
+    </label>
+
+    <div class="add-site-block">
+      <label for="siteInput" class="add-site-label">Add a site</label>
+      <div class="manual-add">
+        <input id="siteInput" type="text" placeholder="e.g. nytimes.com" aria-describedby="addSiteMsg" />
+        <button id="addManual" class="btn-secondary" type="button">Add</button>
+      </div>
+      <p class="add-site-msg" id="addSiteMsg" role="status" aria-live="polite"></p>
+      <a href="sites.html" target="_blank" rel="noopener" class="manage-link">Manage all sites</a>
+    </div>
+
+    <div class="word-divider"></div>
+
+    <div class="word-of-day" id="wordOfDay" data-state="loading">
+      <p class="word-of-day-eyebrow">Today's word</p>
+      <div class="word-of-day-word" id="wordTitle">Loading…</div>
+      <div class="word-of-day-def" id="wordDef"></div>
+    </div>
+
+  </div>
+
+  <script src="shared.js"></script>
+  <script src="dictionary.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

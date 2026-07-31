@@ -1,0 +1,65 @@
+# --- Dependencies -----------------------------------------------------------
+node_modules/
+bower_components/
+.pnp
+.pnp.js
+
+# --- Build / packaging output ------------------------------------------------
+# The extension loads directly from the repository root, so nothing here is
+# required to install it. Only packaged archives and generated bundles.
+dist/
+build/
+out/
+*.zip
+*.crx
+*.pem
+*.xpi
+
+# --- Environment and secrets -------------------------------------------------
+.env
+.env.*
+!.env.example
+*.local
+secrets.json
+credentials.json
+*.key
+
+# --- Local browser-extension state -------------------------------------------
+# Chrome writes profile data here if you point it at a local user-data-dir.
+.chrome-profile/
+chrome-profile/
+*.log
+
+# --- OS files ----------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# --- Editors -----------------------------------------------------------------
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# --- Temporary assets and scratch --------------------------------------------
+tmp/
+temp/
+scratch/
+*.tmp
+*.bak
+*.orig
+*.rej
+*-backup.*
+*.backup
+
+# Screenshot harnesses (generated)
+.shots/

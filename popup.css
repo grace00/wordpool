@@ -1,0 +1,600 @@
+:root {
+  --bg: #fffefc;
+  --surface: #ffffff;
+  --border: #e8e5e0;
+  --border-strong: #d5d1cb;
+  --navy: #12263f;
+  --muted: #5f6b76;
+  --accent: #0b6bcb;
+  --accent-hover: #08529c;
+  --accent-soft: #f2f7fd;
+  --sans: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible",
+    -apple-system, BlinkMacSystemFont, sans-serif;
+  --serif: "Crimson Text", Georgia, serif;
+  --water: #46b3d0;
+  --water-empty: #e3eef4;
+  --radius: 6px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  width: 320px;
+  background: var(--bg);
+  color: var(--navy);
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+.app {
+  padding: 12px 16px 10px;
+}
+
+/* ---------- Header ---------- */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.header-link {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.header-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--accent);
+}
+
+/* ---------- Pool illustration ---------- */
+
+.pool-container {
+  position: relative;
+  margin-bottom: 9px;
+}
+
+.pool-canvas {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1490 / 528;
+  overflow: hidden;
+  background: transparent;
+}
+
+/* The artwork carries ~26px of empty margin at the left before the hose.
+   Both layers are widened and pulled left by the same amount so the pool
+   and its waterline stay in register. */
+.pool-canvas .pool-water,
+.pool-canvas .pool-foreground {
+  left: -26px;
+  width: calc(100% + 26px);
+}
+
+.pool-water {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+}
+
+#waterShift {
+  transition: transform 0.9s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+#waterFill,
+#poolEmpty {
+  cursor: pointer;
+}
+
+#waterFill:focus-visible,
+#poolEmpty:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+
+/* The waterline itself is driven by popup.js so it can react to the cursor's
+   position; nothing here animates it. */
+
+/* Names the destination while the cursor is over each half of the pool. */
+.pool-hint {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  margin: 0;
+  padding: 2px 7px;
+  white-space: nowrap;
+  border-radius: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--navy);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+}
+
+.pool-hint.is-visible {
+  opacity: 1;
+}
+
+.pool-foreground {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  display: block;
+  object-fit: cover;
+}
+
+/* ---------- Metrics ---------- */
+
+.pool-stats {
+  display: flex;
+  align-items: baseline;
+  gap: 22px;
+  padding: 8px 12px 9px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 11px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 58px;
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.stat-value {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  color: var(--navy);
+}
+
+/* ---------- Site toggle ---------- */
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 11px 0 12px;
+  padding: 7px 11px;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-row.is-inactive {
+  background: var(--surface);
+}
+
+/* Reuses the accent rather than inventing a status green the palette
+   doesn't have; the dot hollows out when inactive so it isn't color-only. */
+.status-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.toggle-row.is-inactive .status-dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--border-strong);
+}
+
+.status-state {
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.status-site {
+  color: var(--muted);
+}
+
+.toggle-switch {
+  display: flex;
+  align-items: center;
+}
+
+/* Visually hidden but still focusable and exposed to assistive tech —
+   width/height of 0 would drop it out of the accessibility tree. */
+.toggle-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.toggle-track {
+  position: relative;
+  width: 34px;
+  height: 19px;
+  flex: none;
+  background: #d5d1cb;
+  border-radius: 999px;
+  transition: background-color 0.16s ease;
+}
+
+.toggle-row:hover .toggle-track {
+  background: #c4bfb8;
+}
+
+.toggle-switch input:checked + .toggle-track {
+  background: var(--accent);
+}
+
+.toggle-row:hover .toggle-switch input:checked + .toggle-track {
+  background: var(--accent-hover);
+}
+
+.toggle-switch input:focus-visible + .toggle-track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  background: #fff;
+  border-radius: 50%;
+  transition: left 0.16s ease;
+}
+
+.toggle-switch input:checked + .toggle-track .toggle-thumb {
+  left: 17px;
+}
+
+.toggle-text {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.3;
+}
+
+/* ---------- Add a site ---------- */
+
+.add-site-block {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* Shared section heading — "Add a site", "Word of the day". */
+.add-site-label,
+.section-label {
+  display: block;
+  margin: 0 0 5px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.manual-add {
+  display: flex;
+  gap: 6px;
+}
+
+.manual-add input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 9px;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  color: var(--navy);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  outline: none;
+  transition: border-color 0.14s ease;
+}
+
+.manual-add input::placeholder {
+  color: #8d959d;
+}
+
+.manual-add input:focus {
+  border-color: var(--accent);
+}
+
+.btn-secondary {
+  padding: 6px 12px;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--navy);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.14s ease, background-color 0.14s ease,
+    color 0.14s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.manage-link {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.manage-link:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+/* ---------- Word of the day ---------- */
+
+.word-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 12px 0 0;
+}
+
+.word-of-day {
+  padding: 11px 0 14px;
+}
+
+/* 3. Understated eyebrow, not a section heading. */
+.word-of-day-eyebrow {
+  margin: 0 0 2px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.word-of-day-word {
+  margin-top: 5px;
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--navy);
+}
+
+.word-of-day-def {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* ---------- Overflow menu ---------- */
+
+
+.overflow {
+  position: relative;
+}
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color 0.14s ease, color 0.14s ease,
+    border-color 0.14s ease;
+}
+
+.icon-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--border);
+  color: var(--accent);
+}
+
+.icon-btn[aria-expanded="true"] {
+  background: var(--accent-soft);
+  border-color: var(--border-strong);
+  color: var(--accent);
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 5px);
+  min-width: 158px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 3px 10px rgba(18, 38, 63, 0.1);
+  z-index: 10;
+}
+
+.menu[hidden] {
+  display: none;
+}
+
+.menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 9px;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 400;
+  text-align: left;
+  color: var(--navy);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.menu-item:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* ---------- Pool legend ---------- */
+
+/* Inset to the pool shape's own bounds inside the 1490-unit viewBox
+   (x 321 to 1416) so each label lines up under its portion of the water. */
+.pool-legend {
+  display: flex;
+  align-items: baseline;
+  /* Matches the -26px crop on the artwork below, so the percentage insets
+     resolve against the same box and the labels stay under their regions. */
+  margin: 4px 0 0 -26px;
+  width: calc(100% + 26px);
+  padding: 0 5% 0 21.5%;
+}
+
+.legend {
+  /* JS overwrites these with the real learned/remaining split; the even
+     default keeps the labels apart before the first render. */
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 2px 0;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  /* The box is sized by its share of the pool, but the text is never
+     truncated — it just overflows into the neighbour's slack. */
+  overflow: visible;
+  transition: color 0.12s ease;
+}
+
+.legend:hover {
+  color: var(--accent);
+}
+
+.legend-count {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--navy);
+}
+
+.legend:hover .legend-count {
+  color: var(--accent);
+}
+
+/* Hovering or focusing a region lifts it slightly out of the illustration. */
+#waterFill,
+#poolEmpty {
+  cursor: pointer;
+  transition: filter 0.12s ease;
+}
+
+.pool-canvas.hot-learned #waterFill,
+.pool-canvas.hot-remaining #poolEmpty {
+  filter: brightness(1.07) saturate(1.12);
+}
+
+/* ---------- Add-site feedback ---------- */
+
+.add-site-msg {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted);
+  min-height: 0;
+}
+
+.add-site-msg[data-state="error"] {
+  color: #a3341f;
+}
+
+.add-site-msg[data-state="success"] {
+  color: var(--navy);
+}
+
+.btn-secondary.is-added {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* ---------- Word of the day states ---------- */
+
+.word-of-day[data-state="loading"] .word-of-day-word,
+.word-of-day[data-state="unavailable"] .word-of-day-word {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}

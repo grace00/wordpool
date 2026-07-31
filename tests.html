@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Wordpool tests</title>
+<style>
+  body { font: 13px/1.5 -apple-system, sans-serif; padding: 20px; color: #12263f; }
+  h1 { font-size: 16px; margin: 0 0 12px; }
+  li { margin-bottom: 3px; font-family: ui-monospace, Menlo, monospace; }
+  .pass { color: #1a7f37; }
+  .fail { color: #a3341f; font-weight: 600; }
+  #summary { margin-top: 14px; font-weight: 600; }
+  #fixture { position: absolute; left: -9999px; top: 0; }
+</style>
+<link rel="stylesheet" href="content.css" />
+<style id="hostile">
+  /* Deliberately hostile host-page CSS: the kind of global rules that
+     inflated the popover before it was isolated. */
+  #hostzone div, #hostzone button, #hostzone p {
+    font-size: 34px !important;
+    line-height: 3.2 !important;
+    margin: 24px !important;
+    padding: 18px !important;
+    letter-spacing: 3px !important;
+    text-transform: uppercase !important;
+    box-sizing: content-box !important;
+    min-width: 500px !important;
+  }
+</style>
+</head>
+<body>
+<h1>Wordpool — replacement &amp; popover tests</h1>
+<ul id="results"></ul>
+<p id="summary">running…</p>
+<div id="fixture"></div>
+<div id="hostzone"></div>
+
+<script>
+  // The content script expects a chrome.* surface; these tests only exercise
+  // pure DOM logic, so a minimal stub is enough.
+  window.__WORDPOOL_TEST__ = true;
+  window.chrome = {
+    storage: {
+      sync: { get: (d, cb) => cb && cb(d), set: () => {} },
+      session: { get: (k, cb) => cb && cb({}), set: () => {} },
+    },
+    runtime: { sendMessage: () => {}, getURL: (p) => p },
+  };
+</script>
+<script src="shared.js"></script>
+<script src="dictionary.js"></script>
+<script src="content.js"></script>
+<script>
+(() => {
+  const api = window.__wordpool;
+  const results = document.getElementById("results");
+  const fixture = document.getElementById("fixture");
+  let pass = 0, fail = 0;
+
+  const report = (name, ok, detail) => {
+    const li = document.createElement("li");
+    li.className = ok ? "pass" : "fail";
+    li.textContent = (ok ? "PASS  " : "FAIL  ") + name + (ok || !detail ? "" : "  → " + detail);
+    results.appendChild(li);
+    ok ? pass++ : fail++;
+  };
+  const eq = (name, actual, expected) =>
+    report(name, actual === expected, `got ${JSON.stringify(actual)}, want ${JSON.stringify(expected)}`);
+
+  // A small controlled dictionary, including a multiword replacement.
+  const DICT = {
+    details: { word: "minutiae", def: "small precise details" },
+    safe: { word: "sanctuary", def: "a place of refuge" },
+    quickly: { word: "post haste", def: "with great speed" },
+  };
+
+  const swap = (html) => {
+    api.setDictionary(DICT);
+    api.resetDensity();
+    fixture.innerHTML = "<p>" + html + "</p>";
+    const p = fixture.firstChild;
+    // Walk a snapshot: replaceInTextNode mutates the tree as it goes.
+    const nodes = [];
+    const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach((n) => { api.resetDensity(); api.replaceInTextNode(n); });
+    return p;
+  };
+  const spans = (p) => [...p.querySelectorAll(".vocab-swap-ext")];
+
+  /* 1. replacement followed immediately by ordinary text */
+  let p = swap("The details matter here.");
+  eq("1a. sentence text intact", p.textContent, "The minutiae matter here.");
+  eq("1b. span holds only the replacement", spans(p)[0].textContent, "minutiae");
+  eq("1c. trailing text stays outside the span", spans(p)[0].nextSibling.data, " matter here.");
+
+  /* 2. replacement preceded by punctuation */
+  p = swap('He said, "details" again.');
+  eq("2a. quote stays outside the span", spans(p)[0].textContent, "minutiae");
+  eq("2b. preceding punctuation preserved", p.textContent, 'He said, "minutiae" again.');
+
+  /* 3. replacement at the very start and very end of a text node */
+  p = swap("details lead the way");
+  eq("3a. start-of-node span is exact", spans(p)[0].textContent, "minutiae");
+  eq("3b. start-of-node text intact", p.textContent, "minutiae lead the way");
+
+  p = swap("nothing here is safe");
+  eq("3c. end-of-node span is exact", spans(p)[0].textContent, "sanctuary");
+  eq("3d. end-of-node text intact", p.textContent, "nothing here is safe".replace("safe", "sanctuary"));
+
+  /* 4. multiword replacements keep their internal space */
+  p = swap("Come quickly now.");
+  eq("4a. multiword replacement intact", spans(p)[0].textContent, "post haste");
+  eq("4b. multiword sentence intact", p.textContent, "Come post haste now.");
+
+  /* 5. repeated replacements across a paragraph don't concatenate.
+        Density control (MIN_SENTENCES_BETWEEN_SWAPS) intentionally limits
+        swaps to roughly one per paragraph, so the invariant under test is
+        "every span that IS created is exact", not "every match is swapped". */
+  api.setDictionary(DICT);
+  fixture.innerHTML =
+    "<p><span>The details matter.</span> <span>Stay safe now.</span> " +
+    "<span>More details here.</span> <span>Very safe indeed.</span></p>";
+  p = fixture.firstChild;
+  const textNodes = [];
+  const w2 = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+  while (w2.nextNode()) textNodes.push(w2.currentNode);
+  textNodes.forEach((n) => { api.resetDensity(); api.replaceInTextNode(n); });
+
+  const made = spans(p);
+  report("5a. multiple spans created across the paragraph", made.length >= 3,
+         "created " + made.length);
+  const canonicalValues = Object.values(DICT).map((e) => e.word);
+  report("5b. every span contains exactly one canonical replacement",
+         made.every((s) => canonicalValues.includes(s.textContent)),
+         made.map((s) => s.textContent).join("|"));
+  report("5c. no span absorbed an adjacent word",
+         made.every((s) => !/\s(matter|now|here|indeed|The|Stay|More|Very)/.test(s.textContent)),
+         made.map((s) => s.textContent).join("|"));
+  report("5d. no original word survives inside a span",
+         made.every((s) => !Object.keys(DICT).some((k) => s.textContent.includes(k))),
+         made.map((s) => s.textContent).join("|"));
+  eq("5e. paragraph reads correctly", p.textContent,
+     "The minutiae matter. Stay sanctuary now. More minutiae here. Very sanctuary indeed.");
+
+  /* 6. popover title comes from the canonical entry, not the DOM */
+  p = swap("The details matter.");
+  const span = spans(p)[0];
+  document.body.appendChild(p);
+
+  // Simulate the hover reveal, which appends the ORIGINAL word *inside* the
+  // span — this is what used to leak into the title as "minutiaedetails".
+  const overlay = document.createElement("span");
+  overlay.className = "vocab-reveal-ext";
+  overlay.textContent = span.dataset.original;
+  span.appendChild(overlay);
+  report("6a. hover overlay makes textContent unsafe",
+         span.textContent === "minutiaedetails",
+         "textContent was " + JSON.stringify(span.textContent));
+
+  api.showDefinitionCard(span, DICT.details);
+  const card = document.querySelector(".vocab-card-ext");
+  const title = card && card.firstChild ? card.firstChild.textContent : "(no card)";
+  eq("6b. popover title is canonical", title, "minutiae");
+  eq("6c. dataset carries canonical word", span.dataset.word, "minutiae");
+
+  /* 7. opening and closing the popover does not mutate page text */
+  const before = p.textContent;
+  api.hideOriginalTooltip();
+  eq("7a. page text unchanged after popover cycle", p.textContent, before);
+  overlay.remove();
+  eq("7b. text restored after overlay removal", p.textContent, "The minutiae matter.");
+
+  /* 8. multiword title normalization */
+  const p2 = swap("Come quickly now.");
+  document.body.appendChild(p2);
+  api.showDefinitionCard(spans(p2)[0], DICT.quickly);
+  const card2 = [...document.querySelectorAll(".vocab-card-ext")].pop();
+  eq("8. multiword title keeps its internal space",
+     card2.firstChild.textContent, "post haste");
+  api.hideOriginalTooltip();
+
+
+  /* ---------- Popover: size, isolation, positioning, interaction ---------- */
+
+  const LONG = { word: "subterfuge",
+    def: "A trick designed to help conceal, escape, or evade. A deceptive trick used to achieve an end, especially when the direct route is closed." };
+  const SENSES = { word: "tuition",
+    def: "(1) The act of teaching; instruction. (2) The cost of or payment for instruction." };
+
+  const openCard = (entryKey, entry, hostile) => {
+    api.hideOriginalTooltip();
+    const host = hostile ? document.getElementById("hostzone") : fixture;
+    host.innerHTML = "<p>The " + entryKey + " was obvious.</p>";
+    const p = host.firstChild;
+    api.setDictionary({ [entryKey]: entry });
+    api.resetDensity();
+    const tn = p.firstChild;
+    api.replaceInTextNode(tn);
+    const s = p.querySelector(".vocab-swap-ext");
+    api.showDefinitionCard(s, entry);
+    return { card: document.querySelector(".vocab-card-ext"), span: s, p };
+  };
+
+  const px = (el, prop) => parseFloat(getComputedStyle(el)[prop]);
+
+  /* 9. (dimensions are asserted in group 20, against the current spec) */
+  let r = openCard("subterfuge", LONG, false);
+  let cb = r.card.getBoundingClientRect();
+
+  /* 10. numbered senses preserved verbatim */
+  r = openCard("tuition", SENSES, false);
+  eq("10. numbered senses preserved",
+     r.card.querySelector(".vocab-card-def").textContent, SENSES.def);
+
+  /* 11. host CSS cannot inflate the popover */
+  const plain = openCard("subterfuge", LONG, false);
+  const plainBox = plain.card.getBoundingClientRect();
+  const plainFont = px(plain.card.querySelector(".vocab-card-def"), "fontSize");
+  const hostile = openCard("subterfuge", LONG, true);
+  const hostBox = hostile.card.getBoundingClientRect();
+  const hostFont = px(hostile.card.querySelector(".vocab-card-def"), "fontSize");
+  report("11a. hostile host CSS does not change definition size",
+         Math.abs(hostFont - plainFont) < 0.6, `${plainFont} vs ${hostFont}`);
+  report("11b. hostile host CSS does not change width",
+         Math.abs(hostBox.width - plainBox.width) < 2,
+         `${Math.round(plainBox.width)} vs ${Math.round(hostBox.width)}`);
+  report("11c. hostile host CSS does not change height",
+         Math.abs(hostBox.height - plainBox.height) < 3,
+         `${Math.round(plainBox.height)} vs ${Math.round(hostBox.height)}`);
+  eq("11d. box-sizing stays border-box",
+     getComputedStyle(hostile.card).boxSizing, "border-box");
+  eq("11e. text-transform not inherited",
+     getComputedStyle(hostile.card.querySelector(".vocab-card-word")).textTransform, "none");
+  eq("11f. child margins reset",
+     getComputedStyle(hostile.card.querySelector(".vocab-card-def")).marginLeft, "0px");
+
+  /* 12. positioning: below by default, flipped above near the bottom */
+  const place = (top, left) => {
+    api.hideOriginalTooltip();
+    fixture.style.cssText = "position:fixed;left:0;top:0;width:100%;height:100%;";
+    fixture.innerHTML = `<p style="position:fixed;top:${top}px;left:${left}px;margin:0">The subterfuge was obvious.</p>`;
+    const p = fixture.firstChild;
+    api.setDictionary({ subterfuge: LONG });
+    api.resetDensity();
+    api.replaceInTextNode(p.firstChild);
+    const s = p.querySelector(".vocab-swap-ext");
+    api.showDefinitionCard(s, LONG);
+    const card = document.querySelector(".vocab-card-ext");
+    return { card, word: s.getBoundingClientRect(), box: card.getBoundingClientRect() };
+  };
+
+  let t1 = place(40, 200);
+  eq("12a. placed below when there is room", t1.card.dataset.placement, "bottom");
+  report("12b. sits under the word with a gap",
+         t1.box.top >= t1.word.bottom + 4 && t1.box.top <= t1.word.bottom + 14,
+         `word ${Math.round(t1.word.bottom)}, card ${Math.round(t1.box.top)}`);
+
+  let t2 = place(window.innerHeight - 60, 200);
+  eq("12c. flips above near the bottom", t2.card.dataset.placement, "top");
+  report("12d. does not cover the word when flipped",
+         t2.box.bottom <= t2.word.top + 1,
+         `card bottom ${Math.round(t2.box.bottom)}, word top ${Math.round(t2.word.top)}`);
+
+  /* 13. viewport collisions on all four edges */
+  const inView = (b) =>
+    b.left >= 0 && b.top >= 0 &&
+    b.right <= document.documentElement.clientWidth + 1 &&
+    b.bottom <= document.documentElement.clientHeight + 1;
+
+  const left = place(200, 0);
+  report("13a. clamped at the left edge", inView(left.box) && left.box.left >= 0,
+         "left " + Math.round(left.box.left));
+  const right = place(200, window.innerWidth - 90);
+  report("13b. clamped at the right edge", inView(right.box),
+         "right " + Math.round(right.box.right) + " of " + document.documentElement.clientWidth);
+  const top = place(2, 200);
+  report("13c. stays in view at the top", inView(top.box), "top " + Math.round(top.box.top));
+  const bottom = place(window.innerHeight - 24, 200);
+  report("13d. stays in view at the bottom", inView(bottom.box),
+         "bottom " + Math.round(bottom.box.bottom) + " of " + document.documentElement.clientHeight);
+
+  /* 14. only one popover at a time */
+  place(200, 100);
+  place(200, 300);
+  eq("14. previous popover closed", document.querySelectorAll(".vocab-card-ext").length, 1);
+
+  /* 15. dismissal — Escape and outside click */
+  api.setupTooltipHandlers();
+  place(200, 200);
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  eq("15a. Escape closes the popover", document.querySelectorAll(".vocab-card-ext").length, 0);
+
+  place(200, 200);
+  document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  eq("15b. outside click closes the popover", document.querySelectorAll(".vocab-card-ext").length, 0);
+
+  const kept = place(200, 200);
+  kept.card.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  eq("15c. clicking inside keeps it open", document.querySelectorAll(".vocab-card-ext").length, 1);
+
+  /* 16. canonical title still correct after all of the above */
+  eq("16. title is the canonical entry",
+     kept.card.querySelector(".vocab-card-word").textContent, "subterfuge");
+  api.hideOriginalTooltip();
+  fixture.style.cssText = "position:absolute;left:-9999px;top:0;";
+
+
+  /* ---------- Domain normalization, validation, migration ---------- */
+
+  const S = window.WordpoolShared;
+
+  eq("17a. bare domain", S.normalizeDomain("nytimes.com"), "nytimes.com");
+  eq("17b. full URL with path", S.normalizeDomain("https://www.nytimes.com/path?q=1"), "nytimes.com");
+  eq("17c. strips www", S.normalizeDomain("www.example.co.uk"), "example.co.uk");
+  eq("17d. trims and lowercases", S.normalizeDomain("  NYTimes.COM  "), "nytimes.com");
+  eq("17e. keeps subdomains", S.normalizeDomain("news.bbc.co.uk"), "news.bbc.co.uk");
+  eq("17f. bare IPv4 allowed", S.normalizeDomain("192.168.0.1"), "192.168.0.1");
+
+  // The exact bug that put "chrome" in the list.
+  eq("18a. chrome:// rejected", S.normalizeDomain("chrome://extensions"), null);
+  eq("18b. chrome-extension:// rejected",
+     S.normalizeDomain("chrome-extension://abcdef/popup.html"), null);
+  eq("18c. about: rejected", S.normalizeDomain("about:blank"), null);
+  eq("18d. file: rejected", S.normalizeDomain("file:///Users/x/a.html"), null);
+  eq("18e. bare 'chrome' rejected", S.normalizeDomain("chrome"), null);
+  eq("18f. edge:// rejected", S.normalizeDomain("edge://settings"), null);
+  eq("18g. javascript: rejected", S.normalizeDomain("javascript:alert(1)"), null);
+  eq("18h. word without a dot rejected", S.normalizeDomain("notadomain"), null);
+  eq("18i. empty rejected", S.normalizeDomain("   "), null);
+  eq("18j. non-string rejected", S.normalizeDomain(null), null);
+
+  /* 19. migration keeps real domains and drops internal junk */
+  const mig = S.migrateSites(["chrome", "nytimes.com", "about", "www.bbc.co.uk", "file", "chrome"]);
+  eq("19a. valid domains kept", mig.kept.join(","), "nytimes.com,bbc.co.uk");
+  eq("19b. invalid entries removed", mig.removed.join(","), "chrome,about,file,chrome");
+  report("19c. migration reports a change", mig.changed === true, String(mig.changed));
+
+  const clean = S.migrateSites(["nytimes.com", "bbc.co.uk"]);
+  report("19d. clean list is left alone",
+         clean.changed === false && clean.kept.length === 2,
+         JSON.stringify(clean));
+  eq("19e. duplicates collapsed",
+     S.migrateSites(["nytimes.com", "www.nytimes.com"]).kept.join(","), "nytimes.com");
+  eq("19f. empty list is safe", S.migrateSites(undefined).kept.length, 0);
+
+  /* 20. popover is compact again */
+  r = openCard("subterfuge", LONG, false);
+  cb = r.card.getBoundingClientRect();
+  report("20a. width within 340px", cb.width <= 340, cb.width + "px");
+  report("20b. width at least 240px (not squeezed)", cb.width >= 240, cb.width + "px");
+  report("20c. height content-driven", cb.height > 40 && cb.height < 150, cb.height + "px");
+  eq("20d. horizontal padding", getComputedStyle(r.card).paddingLeft, "12px");
+  eq("20e. vertical padding", getComputedStyle(r.card).paddingTop, "10px");
+  eq("20f. word 16px", getComputedStyle(r.card.querySelector(".vocab-card-word")).fontSize, "16px");
+  eq("20g. definition 12px", getComputedStyle(r.card.querySelector(".vocab-card-def")).fontSize, "12px");
+  eq("20h. action 10px", getComputedStyle(r.card.querySelector(".vocab-card-action")).fontSize, "10px");
+  eq("20i. word-to-definition gap",
+     getComputedStyle(r.card.querySelector(".vocab-card-def")).marginTop, "5px");
+  eq("20j. definition-to-action gap",
+     getComputedStyle(r.card.querySelector(".vocab-card-action")).marginTop, "8px");
+  eq("20k. no minimum height", getComputedStyle(r.card).minHeight, "0px");
+  api.hideOriginalTooltip();
+
+  document.getElementById("summary").textContent =
+    `${pass} passed, ${fail} failed`;
+  window.__testResults = { pass, fail };
+})();
+</script>
+</body>
+</html>

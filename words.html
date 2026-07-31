@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Vocabulary pool — Wordpool</title>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;500;600;700&family=Crimson+Text:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="words.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="page-header">
+      <h1>Wordpool</h1>
+      <p class="page-sub">Your vocabulary list — <span id="countLabel">694 words</span></p>
+    </header>
+
+    <div class="settings-row">
+      <label class="switch" for="autoMarkCheckbox">
+        <input id="autoMarkCheckbox" type="checkbox" />
+        <span class="switch-track"><span class="switch-thumb"></span></span>
+        <span class="sr-only">Automatically mark words learned</span>
+      </label>
+      <div class="settings-text">
+        <span class="settings-title">Automatically mark words learned</span>
+        <span class="settings-sub">
+          After
+          <input id="thresholdInput" class="threshold-input" type="number"
+                 min="1" max="99" value="10" aria-label="Exposures before a word is marked learned" />
+          exposures
+        </span>
+      </div>
+    </div>
+
+    <div class="settings-row settings-row-quiet">
+      <div class="settings-text">
+        <span class="settings-title">Words swapped on pages</span>
+        <span class="settings-sub">Which tier the extension substitutes while you browse</span>
+      </div>
+      <select id="difficultySelect" class="select" aria-label="Words swapped on pages">
+        <option value="hard">Difficult only</option>
+        <option value="all">All words</option>
+      </select>
+    </div>
+
+    <div class="toolbar">
+      <input id="search" class="search" type="text" placeholder="Search words or definitions…" aria-label="Search words or definitions" />
+      <div class="segmented" role="tablist" aria-label="Filter words">
+        <button class="seg" role="tab" type="button" data-filter="all" aria-selected="true">All</button>
+        <button class="seg" role="tab" type="button" data-filter="learning" aria-selected="false">Learning</button>
+        <button class="seg" role="tab" type="button" data-filter="learned" aria-selected="false">Learned</button>
+        <button class="seg" role="tab" type="button" data-filter="difficult" aria-selected="false">Difficult</button>
+      </div>
+      <button id="showAddForm" class="btn-primary" type="button">Add a word</button>
+    </div>
+
+    <div id="addForm" class="add-form" hidden>
+      <input id="newTrigger" type="text" placeholder="Common word (e.g. happy)" aria-label="Common word" />
+      <input id="newReplacement" type="text" placeholder="Rare replacement (e.g. elated)" aria-label="Rare replacement" />
+      <input id="newDef" type="text" placeholder="Short definition (optional)" aria-label="Short definition" />
+      <div class="add-form-actions">
+        <button id="saveNewWord" class="btn-primary" type="button">Save</button>
+        <button id="cancelNewWord" class="btn-secondary" type="button">Cancel</button>
+      </div>
+    </div>
+
+    <div id="list" class="word-list"></div>
+    <p id="emptyState" class="empty" hidden>No words match your search.</p>
+  </div>
+
+  <script src="dictionary.js"></script>
+  <script src="words.js"></script>
+</body>
+</html>

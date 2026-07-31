@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Active sites — Wordpool</title>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;500;600;700&family=Crimson+Text:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="words.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="page-header">
+      <h1>Wordpool</h1>
+      <p class="page-sub">Active sites — <span id="countLabel">0</span> active</p>
+    </header>
+
+    <div class="site-form">
+      <label for="siteInput" class="add-site-label">Add a site</label>
+      <div class="field-row">
+        <input id="siteInput" class="field" type="text"
+               placeholder="e.g. nytimes.com" autocomplete="off"
+               spellcheck="false" aria-describedby="siteMsg" />
+        <button id="addSite" class="btn-secondary btn-fixed" type="button">Add</button>
+      </div>
+      <p class="form-msg" id="siteMsg" role="status" aria-live="polite"></p>
+    </div>
+
+    <div id="list" class="word-list"></div>
+    <p id="emptyState" class="empty" hidden>
+      No sites yet. Add one above, or open a site and turn on the toggle in the
+      Wordpool popup.
+    </p>
+  </div>
+
+  <script src="shared.js"></script>
+  <script src="sites.js"></script>
+</body>
+</html>
