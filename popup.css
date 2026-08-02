@@ -83,7 +83,11 @@ body {
 
 .pool-container {
   position: relative;
-  margin-bottom: 9px;
+  /* Breaks out of the app's 16px left padding so the artwork meets the
+     popup edge. The legend below is a child, so it shifts with it and
+     stays in register with the waterline. */
+  margin: 0 0 9px -16px;
+  width: calc(100% + 16px);
 }
 
 .pool-canvas {
@@ -547,6 +551,13 @@ body {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--navy);
+}
+
+.legend-learned .legend-count {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
 }
 
 .legend:hover .legend-count {

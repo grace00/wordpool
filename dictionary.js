@@ -354,7 +354,7 @@ const VOCAB_DICTIONARY = {
   "middle": { word: "median", def: "In the middle; especially, having a value that is in the middle of a series of values arranged from smallest to largest." },
   "middleman": { word: "intermediary", def: "A person who works with opposing sides in a dispute in order to bring about an agreement." },
   "military": { word: "martial", def: "Having to do with war and military life." },
-  "mind": { word: "psyche", def: "Soul, personality, mind." },
+  "mind": { word: "psyche", def: "A person's mind or emotional state." },
   "miniature": { word: "microcosm", def: "Something (such as a place or an event) that is seen as a small version of something much larger." },
   "misconception": { word: "fallacy", def: "A wrong belief; a false or mistaken idea." },
   "mislabel": { word: "misnomer", def: "A wrong name, or the use of a wrong name." },
