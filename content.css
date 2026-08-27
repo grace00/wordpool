@@ -43,11 +43,11 @@
   min-height: 0 !important;
   height: auto !important;
   margin: 0 !important;
-  padding: 10px 12px !important;
-  background: #f7fbfe !important;
-  border: 1px solid #dbe6ef !important;
-  border-radius: 6px !important;
-  box-shadow: 0 2px 8px rgba(18, 38, 63, 0.1) !important;
+  padding: 10px 12px 7px !important;
+  background: #f1f7fd !important;
+  border: 1px solid rgba(48, 93, 150, 0.16) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 14px rgba(24, 39, 75, 0.1) !important;
   color: #12263f !important;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     sans-serif !important;
@@ -95,7 +95,10 @@
 
 .vocab-card-action {
   margin-top: 8px !important;
-  align-self: flex-start;
+  /* Right-aligned and italic so it reads as an action rather than another
+     line of the definition. */
+  align-self: flex-end;
+  font-style: italic !important;
   appearance: none !important;
   -webkit-appearance: none !important;
   background: none !important;
@@ -129,9 +132,9 @@
   position: absolute;
   width: 8px !important;
   height: 8px !important;
-  background: #f7fbfe !important;
-  border-left: 1px solid #dbe6ef !important;
-  border-top: 1px solid #dbe6ef !important;
+  background: #f1f7fd !important;
+  border-left: 1px solid rgba(48, 93, 150, 0.16) !important;
+  border-top: 1px solid rgba(48, 93, 150, 0.16) !important;
   transform: rotate(45deg);
 }
 

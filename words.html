@@ -35,10 +35,14 @@
         <span class="settings-title">Words swapped on pages</span>
         <span class="settings-sub">Which tier the extension substitutes while you browse</span>
       </div>
-      <select id="difficultySelect" class="select" aria-label="Words swapped on pages">
-        <option value="hard">Difficult only</option>
-        <option value="all">All words</option>
-      </select>
+      <div class="segmented tier-toggle" role="group" aria-label="Words swapped on pages">
+        <button class="seg" type="button" data-tier="all" aria-pressed="true">
+          Every word <small id="tierCountAll">all</small>
+        </button>
+        <button class="seg" type="button" data-tier="hard" aria-pressed="false">
+          Rarest only <small id="tierCountHard">the hardest</small>
+        </button>
+      </div>
     </div>
 
     <div class="toolbar">
@@ -47,7 +51,7 @@
         <button class="seg" role="tab" type="button" data-filter="all" aria-selected="true">All</button>
         <button class="seg" role="tab" type="button" data-filter="learning" aria-selected="false">Learning</button>
         <button class="seg" role="tab" type="button" data-filter="learned" aria-selected="false">Learned</button>
-        <button class="seg" role="tab" type="button" data-filter="difficult" aria-selected="false">Difficult</button>
+        <button class="seg" role="tab" type="button" data-filter="difficult" aria-selected="false">Rare</button>
       </div>
       <button id="showAddForm" class="btn-primary" type="button">Add a word</button>
     </div>

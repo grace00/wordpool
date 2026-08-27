@@ -14,7 +14,7 @@
   const cancelNewWordBtn = $("cancelNewWord");
   const autoMarkCheckbox = $("autoMarkCheckbox");
   const thresholdInput = $("thresholdInput");
-  const difficultySelect = $("difficultySelect");
+  const tierButtons = [...document.querySelectorAll(".tier-toggle .seg")];
   const segButtons = [...document.querySelectorAll(".seg")];
 
   const BASE_DICTIONARY =
@@ -61,7 +61,7 @@
 
       autoMarkCheckbox.checked = autoMark;
       thresholdInput.value = autoMarkThreshold;
-      difficultySelect.value = difficulty;
+      syncTierButtons();
       cb();
     });
   }
@@ -86,8 +86,18 @@
     );
   }
 
+  // Counts only the tier currently in play. Custom words are always in play.
+  function inTier(trig) {
+    if (customWords[trig]) return true;
+    const e = BASE_DICTIONARY[trig];
+    return !!e && (difficulty !== "hard" || !!e.hard);
+  }
+
   function updateCount() {
-    const total = Object.keys(BASE_DICTIONARY).length + Object.keys(customWords).length;
+    const total = [
+      ...Object.keys(BASE_DICTIONARY),
+      ...Object.keys(customWords),
+    ].filter(inTier).length;
     countLabel.textContent = total + (total === 1 ? " word" : " words");
   }
 
@@ -175,7 +185,7 @@
       } else if (e.hard) {
         const tag = document.createElement("span");
         tag.className = "badge";
-        tag.textContent = "Difficult";
+        tag.textContent = "Rare";
         line.appendChild(tag);
       }
       if (isLearned) {
@@ -287,9 +297,29 @@
 
   // Which tier the content script substitutes while browsing. This is a
   // behavior setting, separate from the view filters above.
-  difficultySelect.addEventListener("change", () => {
-    difficulty = difficultySelect.value;
-    save({ difficulty });
+  // Labels carry the size of each tier, so the choice explains itself rather
+  // than relying on one word to imply which is harder.
+  function syncTierButtons() {
+    const all = Object.keys(BASE_DICTIONARY).length + Object.keys(customWords).length;
+    const hard = Object.keys(BASE_DICTIONARY).filter((t) => BASE_DICTIONARY[t].hard)
+      .length + Object.keys(customWords).length;
+    const a = $("tierCountAll"), r = $("tierCountHard");
+    if (a) a.textContent = all + " words";
+    if (r) r.textContent = "the hardest " + hard;
+    tierButtons.forEach((b) =>
+      b.setAttribute("aria-pressed", String(b.dataset.tier === difficulty))
+    );
+  }
+
+  tierButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      difficulty = btn.dataset.tier;
+      save({ difficulty });
+      syncTierButtons();
+      // Both the headline count and the list are scoped to the tier.
+      updateCount();
+      render();
+    });
   });
 
   function syncFilterButtons() {

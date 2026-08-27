@@ -16,8 +16,6 @@
   // design review), so every chrome.* path is guarded.
   const hasChrome = typeof chrome !== "undefined" && !!chrome.storage;
 
-  // Fixed presentation state for demos and screenshots. Set to null to run
-  // entirely on live storage. 168 / 504 is exactly 25% of the 672-word pool.
   // Horizontal bounds of the pool shape inside the 1490-unit viewBox. The
   // water path's curved edge sits at its local x=0, so sliding the shape to
   // POOL_X + progress * POOL_W puts the waterline at the right fraction.
@@ -213,21 +211,25 @@
   function renderWordCount() {
     if (!hasChrome) return;
     chrome.storage.sync.get(
-      { disabledTriggers: [], customWords: {}, learnedWords: [] },
+      { difficulty: "hard", disabledTriggers: [], customWords: {}, learnedWords: [] },
       (res) => {
         const learnedSet = new Set(res.learnedWords || []);
         const disabled = new Set(res.disabledTriggers || []);
         const custom = res.customWords || {};
 
-        // The pool is your whole vocabulary list, so these counts span the
-        // entire dictionary. The difficulty tier decides only which words get
-        // swapped while browsing — it does not shrink the pool, and scoping
-        // these numbers to it made the popup disagree with the pool page.
-        // Words retired by hand are in neither count: they are out of
-        // rotation, not progress.
+        // The pool shows the tier you are actually studying, so both counts
+        // are scoped to it. The pool page headline is scoped the same way, so
+        // the two surfaces agree. Words retired by hand are in neither count:
+        // they are out of rotation, not progress.
+        const inTier = (trig) => {
+          if (custom[trig]) return true;
+          const e = BASE_DICTIONARY[trig];
+          return !!e && (res.difficulty !== "hard" || !!e.hard);
+        };
         let learned = 0;
         let remaining = 0;
         const tally = (trig) => {
+          if (!inTier(trig)) return;
           // Learned words are also stored as disabled, so check learned first
           // or they would fall out of both counts.
           if (learnedSet.has(trig)) learned++;

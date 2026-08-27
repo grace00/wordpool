@@ -278,7 +278,8 @@ body {
   color: var(--navy);
 }
 
-.seg[aria-selected="true"] {
+.seg[aria-selected="true"],
+.seg[aria-pressed="true"] {
   background: var(--accent-soft);
   color: var(--accent);
   font-weight: 600;
@@ -565,4 +566,25 @@ body {
 
 .form-msg[data-state="success"] {
   color: var(--navy);
+}
+
+/* Tier chooser. Two levels, each labelled with its size so neither name has
+   to carry the whole meaning on its own. */
+.tier-toggle .seg {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 6px 12px;
+  text-align: left;
+}
+
+.tier-toggle .seg small {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.tier-toggle .seg[aria-pressed="true"] small {
+  color: var(--accent);
 }
