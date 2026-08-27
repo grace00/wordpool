@@ -12,7 +12,7 @@ On sites you choose, it swaps roughly one word every few sentences for a rarer s
 
 ## Three interactions
 
-**Hover** shows the original word in place. The replacement stays in the layout and the original is painted over it, so the line never reflows and you never lose your place mid-sentence.
+**Hover** swaps the word back to the original in place. The space the replacement occupied is held open, so a shorter original never pulls the sentence leftward. Only a longer one nudges the following text along.
 
 **Click** opens a compact card with the definition, anchored to the word rather than centered on the page.
 

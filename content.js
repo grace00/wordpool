@@ -58,8 +58,94 @@
     }
   }
 
+  // Every mutation of the shared arrays goes through this queue.
+  //
+  // learnedWords and disabledTriggers are read-modify-written from three
+  // places, and trackExposure() alone fires once per swapped word (dozens of
+  // times per page load). Unqueued, each caller holds a snapshot taken before
+  // the others' writes land, so the last write wins and silently erases the
+  // rest. That is why a word marked learned could vanish from the count.
+  //
+  // Chaining on a single promise means each mutation reads the state left by
+  // the one before it.
+  let storageQueue = Promise.resolve();
+  let lastWriteError = null;
+  function updateStorage(defaults, mutate) {
+    storageQueue = storageQueue
+      .then(
+        () =>
+          new Promise((resolve) => {
+            // After the extension is reloaded, content scripts already
+            // running in open tabs keep their old context, and every
+            // chrome.* call throws. Without this the failure is invisible:
+            // the card animates away as though the word had been saved.
+            if (!chrome.runtime || !chrome.runtime.id) {
+              lastWriteError = "Extension context invalidated. Reload the page.";
+              console.warn("[Wordpool] " + lastWriteError);
+              return resolve();
+            }
+            try {
+              chrome.storage.sync.get(defaults, (res) => {
+              const patch = mutate(res);
+              if (!patch) return resolve();
+                chrome.storage.sync.set(patch, () => {
+                  // storage.sync enforces a write quota. Without this check a
+                  // rejected write looks identical to a successful one, and
+                  // the change is lost with no sign of it.
+                  const err = chrome.runtime && chrome.runtime.lastError;
+                  if (err) {
+                    lastWriteError = err.message || String(err);
+                    console.warn("[Wordpool] write failed: " + lastWriteError);
+                  }
+                  resolve();
+                });
+              });
+            } catch (e) {
+              lastWriteError = e && e.message ? e.message : String(e);
+              console.warn("[Wordpool] " + lastWriteError);
+              resolve();
+            }
+          })
+      )
+      .catch(() => {});
+    return storageQueue;
+  }
+
+  // Exposure counts were written once per swapped word, which is roughly
+  // forty storage.sync writes per page load. Chrome allows 120 writes a
+  // minute, so three quick page loads exhausted the quota and every later
+  // write failed silently, including the one that records a learned word.
+  // Counts now accumulate in memory and flush once.
+  const pendingExposures = Object.create(null);
+  let exposureFlushTimer = null;
+
+  // Small diagnostic surface: run window.__wordpoolStatus() in the page
+  // console to see whether this tab's script can still reach storage.
+  if (typeof window !== "undefined") {
+    window.__wordpoolStatus = () => ({
+      contextAlive: !!(chrome.runtime && chrome.runtime.id),
+      lastWriteError,
+      wordsInPlay: Object.keys(DICTIONARY).length,
+      swapsOnPage: document.querySelectorAll(".vocab-swap-ext").length,
+      pendingExposures: Object.keys(pendingExposures).length,
+    });
+  }
+
   function trackExposure(trigger) {
-    chrome.storage.sync.get(
+    pendingExposures[trigger] = (pendingExposures[trigger] || 0) + 1;
+    if (exposureFlushTimer) return;
+    exposureFlushTimer = setTimeout(flushExposures, 2000);
+  }
+
+  function flushExposures() {
+    clearTimeout(exposureFlushTimer);
+    exposureFlushTimer = null;
+
+    const batch = { ...pendingExposures };
+    for (const k of Object.keys(pendingExposures)) delete pendingExposures[k];
+    if (Object.keys(batch).length === 0) return;
+
+    updateStorage(
       {
         autoMark: false,
         autoMarkThreshold: 10,
@@ -68,41 +154,41 @@
         disabledTriggers: [],
       },
       (res) => {
-        if (!res.autoMark) return;
+        if (!res.autoMark) return null;
 
-        const counts = res.exposureCounts || {};
-        counts[trigger] = (counts[trigger] || 0) + 1;
-
+        const counts = { ...(res.exposureCounts || {}) };
         const threshold = Math.max(1, res.autoMarkThreshold || 10);
-        if (counts[trigger] >= threshold) {
-          // Auto-mark as learned
-          const learned = res.learnedWords || [];
-          const disabled = res.disabledTriggers || [];
-          if (!learned.includes(trigger)) {
-            learned.push(trigger);
-          }
-          if (!disabled.includes(trigger)) {
-            disabled.push(trigger);
-          }
-          chrome.storage.sync.set({
-            exposureCounts: counts,
-            learnedWords: learned,
-            disabledTriggers: disabled,
-          });
+        const learned = [...(res.learnedWords || [])];
+        const disabled = [...(res.disabledTriggers || [])];
+        let graduated = false;
 
-          // Remove from this page's dictionary
+        for (const [trigger, n] of Object.entries(batch)) {
+          counts[trigger] = (counts[trigger] || 0) + n;
+          if (counts[trigger] < threshold) continue;
+          if (!learned.includes(trigger)) learned.push(trigger);
+          if (!disabled.includes(trigger)) disabled.push(trigger);
           delete DICTIONARY[trigger];
-          const remainingKeys = Object.keys(DICTIONARY);
-          wordPattern =
-            remainingKeys.length > 0
-              ? new RegExp("\\b(" + remainingKeys.join("|") + ")\\b", "gi")
-              : null;
-        } else {
-          chrome.storage.sync.set({ exposureCounts: counts });
+          graduated = true;
         }
+
+        if (graduated) {
+          const keys = Object.keys(DICTIONARY);
+          wordPattern =
+            keys.length > 0
+              ? new RegExp("\\b(" + keys.join("|") + ")\\b", "gi")
+              : null;
+        }
+
+        return { exposureCounts: counts, learnedWords: learned, disabledTriggers: disabled };
       }
     );
   }
+
+  // Do not lose a partial batch when the page goes away.
+  window.addEventListener("pagehide", flushExposures);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) flushExposures();
+  });
 
   let globalCount = 0;
   let stopped = false;
@@ -363,15 +449,16 @@
 
     // Save first, animate second: the record is what matters if the tab is
     // closed mid-animation.
-    chrome.storage.sync.get({ learnedWords: [], disabledTriggers: [] }, (res) => {
+    updateStorage({ learnedWords: [], disabledTriggers: [] }, (res) => {
       const learned = res.learnedWords || [];
-      if (!learned.includes(trigger)) {
-        chrome.storage.sync.set({ learnedWords: [...learned, trigger] });
-      }
       const disabled = res.disabledTriggers || [];
-      if (!disabled.includes(trigger)) {
-        chrome.storage.sync.set({ disabledTriggers: [...disabled, trigger] });
-      }
+      if (learned.includes(trigger) && disabled.includes(trigger)) return null;
+      return {
+        learnedWords: learned.includes(trigger) ? learned : [...learned, trigger],
+        disabledTriggers: disabled.includes(trigger)
+          ? disabled
+          : [...disabled, trigger],
+      };
     });
 
     spawnRaindrop(originEl || card);
@@ -444,11 +531,11 @@
   }
 
   function removeWordFromPool(trigger) {
-    chrome.storage.sync.get({ disabledTriggers: [] }, (result) => {
-      const disabled = result.disabledTriggers || [];
-      if (!disabled.includes(trigger)) {
-        chrome.storage.sync.set({ disabledTriggers: [...disabled, trigger] });
-      }
+    updateStorage({ disabledTriggers: [] }, (res) => {
+      const disabled = res.disabledTriggers || [];
+      return disabled.includes(trigger)
+        ? null
+        : { disabledTriggers: [...disabled, trigger] };
     });
 
     // Also drop it from THIS page's already-loaded dictionary and rebuild
@@ -615,56 +702,30 @@
         (el) => el.classList && el.classList.contains("vocab-swap-ext")
       );
       if (span && span !== activeTooltipSpan && !span.dataset.revealed) {
-        // Swapping the text in place reflows the sentence — the original is
-        // rarely the same width as the swap. Instead keep the swapped text
-        // in flow (just invisible) and paint the original over it in an
-        // absolutely positioned overlay, so nothing around it moves at all.
-        const color = getComputedStyle(span).color;
-        // An absolutely positioned box inside an inline element is anchored
-        // to that inline's content area, but the overlay's own line box adds
-        // half-leading on top, which drops the text a couple of pixels. A
-        // line-height matching the content area gets close; the exact
-        // remainder is measured and corrected below.
-        const box = span.getClientRects()[0];
-        const lineHeight = box ? box.height : null;
-        // Rect of the swapped text as it sits now. It stays valid after the
-        // overlay is added, since an absolute box doesn't reflow the line.
-        const swappedTextNode = span.firstChild;
-        const baseRect = textRect(swappedTextNode);
+        // Swap the text in place so the original reads as ordinary prose.
+        //
+        // The word must never get NARROWER while hovered. If it did, the text
+        // after it would slide left, out from under the cursor, firing
+        // mouseleave -> restore -> grow -> mouseenter, and the word would
+        // flicker between the two forms. So the space the replacement
+        // occupied is held open with padding when the original is shorter.
+        // A longer original is allowed to push the line along, since there is
+        // nowhere else for it to go.
+        const singleLine = span.getClientRects().length === 1;
+        const widthBefore = singleLine ? span.getBoundingClientRect().width : 0;
+
         span.dataset.revealed = "1";
-        span.style.position = "relative";
-        span.style.color = "transparent";
+        span.textContent = span.dataset.original;
         span.title = "Click for full definition";
 
-        const overlay = document.createElement("span");
-        overlay.className = "vocab-reveal-ext";
-        overlay.textContent = span.dataset.original;
-        Object.assign(overlay.style, {
-          position: "absolute",
-          left: "0",
-          top: "0",
-          color: color,
-          whiteSpace: "nowrap",
-          pointerEvents: "none",
-          lineHeight: lineHeight ? lineHeight + "px" : "normal",
-        });
-        span.appendChild(overlay);
-
-        // Both rects come from the same font metrics, so once the overlay's
-        // text box lines up with the swapped one they share a baseline.
-        // Correcting the measured delta absorbs any sub-pixel rounding.
-        const overlayRect = textRect(overlay.firstChild);
-        if (baseRect && overlayRect) {
-          const dy = overlayRect.top - baseRect.top;
-          const dx = overlayRect.left - baseRect.left;
-          if (dy) overlay.style.top = -dy + "px";
-          if (dx) overlay.style.left = -dx + "px";
+        if (singleLine && span.getClientRects().length === 1) {
+          const shrunkBy = widthBefore - span.getBoundingClientRect().width;
+          if (shrunkBy > 0.5) span.style.paddingRight = shrunkBy + "px";
         }
 
         const restore = () => {
-          overlay.remove();
-          span.style.position = "";
-          span.style.color = "";
+          if (span.dataset.word) span.textContent = span.dataset.word;
+          span.style.paddingRight = "";
           delete span.dataset.revealed;
           span.removeEventListener("mouseleave", restore);
         };
@@ -753,6 +814,8 @@
         lastSwapSentence = -Infinity;
       },
       replaceInTextNode,
+      trackExposure,
+      flushExposures,
       showDefinitionCard,
       hideOriginalTooltip,
       setupTooltipHandlers,
