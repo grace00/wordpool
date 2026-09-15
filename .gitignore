@@ -63,3 +63,9 @@ scratch/
 
 # Screenshot harnesses (generated)
 .shots/
+
+# Local calibration tooling (not part of the extension)
+tools/
+
+# Portfolio screenshots and demo video (kept local)
+portfolio-assets/
